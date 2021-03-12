@@ -8,7 +8,7 @@
 //!
 //! ## Example
 //!
-//! bgpq3
+//! bgpq3 AS-Set
 //!
 //! ```
 //! extern crate bgpq3;
@@ -18,6 +18,18 @@
 //!     println!("{:?}", networks);
 //! }
 //! ```
+//!
+//! bgpq3 ASN
+//!
+//! ```
+//! extern crate bgpq3;
+//!
+//! pub fn main() {
+//!     let networks = bgpq3::Bgpq3::new().query_v6(207968).unwrap();
+//!     println!("{:?}", networks);
+//! }
+//! ```
+//!
 //! bgpq4
 //!
 //! ```ignore
