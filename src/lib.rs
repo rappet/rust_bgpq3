@@ -97,6 +97,16 @@ impl Bgpq3 {
         Default::default()
     }
 
+    /// Creates a new wrapper with bgpq3 as a backend.
+    pub fn bgpq3() -> Bgpq3 {
+        Bgpq3::builder().version(Version::Bgpq3).build()
+    }
+
+    /// Creates a new wrapper with bgpq4 as a backend.
+    pub fn bgpq4() -> Bgpq3 {
+        Bgpq3::builder().version(Version::Bgpq4).build()
+    }
+
     /// Creates a new [`Bgpq3`] builder [`Bgpq3Settings`].
     pub fn builder() -> Bgpq3Settings {
         Bgpq3Settings::new()
