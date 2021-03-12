@@ -1,6 +1,6 @@
 [package]
 name = "bgpq3"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 authors = ["Raphael Peters <rappet@rappet.de>"]
 description = "A wrapper around the bgpq3/bgpq4 binary"
 documentation = "https://docs.rs/bgpq3"
