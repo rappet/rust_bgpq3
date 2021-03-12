@@ -35,11 +35,10 @@ bgpq4
 
 ```rust
 extern crate bgpq3;
-use bgpq3::{Bgpq3, Version};
+use bgpq3::Bgpq3;
 
 pub fn main() {
-    let bgpq4 = Bgpq3::builder().version(Version::Bgpq4).build();
-    let networks = bgpq4.query_v6("AS-RAPPET").unwrap();
+    let networks = Bgpq3::bgpq4().query_v6("AS-RAPPET").unwrap();
     println!("{:?}", networks);
 }
 ```
