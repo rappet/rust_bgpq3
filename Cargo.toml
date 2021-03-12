@@ -30,3 +30,6 @@ name = "simple"
 [[example]]
 name = "tokio"
 required-features = ["tokio"]
+
+[package.metadata.docs.rs]
+all-features = true
