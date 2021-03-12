@@ -9,6 +9,8 @@ This library provides a thing wrapper around the [`bgpq3`]/[`bgpq4`] binary.
 
 ## Example
 
+bgpq3 AS-Set
+
 ```rust
 extern crate bgpq3;
 
@@ -17,6 +19,34 @@ pub fn main() {
     println!("{:?}", networks);
 }
 ```
+
+bgpq3 ASN
+
+```rust
+extern crate bgpq3;
+
+pub fn main() {
+    let networks = bgpq3::Bgpq3::new().query_v6(207968).unwrap();
+    println!("{:?}", networks);
+}
+```
+
+bgpq4
+
+```rust
+extern crate bgpq3;
+use bgpq3::{Bgpq3, Version};
+
+pub fn main() {
+    let bgpq4 = Bgpq3::builder().version(Version::Bgpq4).build();
+    let networks = bgpq4.query_v6("AS-RAPPET").unwrap();
+    println!("{:?}", networks);
+}
+```
+
+## Feature flags
+
+- `tokio` for async process invocation.
 
 [`bgpq3`]: https://github.com/snar/bgpq3
 [`bgpq4`]: https://github.com/bgp/bgpq4
