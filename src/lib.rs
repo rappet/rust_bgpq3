@@ -212,7 +212,7 @@ impl Bgpq3Query {
 
     pub fn asn(asn: u32) -> Bgpq3Query {
         Bgpq3Query {
-            query_string: format!("{}", asn.to_string()),
+            query_string: format!("AS{}", asn.to_string()),
         }
     }
 
