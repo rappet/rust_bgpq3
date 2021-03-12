@@ -4,9 +4,13 @@
 //!
 //! This library provides a thing wrapper around the [`bgpq3`]/[`bgpq4`] binary.
 //!
+//! See [`Bgpq3::query_v4`] and [`Bgpq3::query_v6`].
+//!
 //! ## Example
 //!
-//! ```rust
+//! bgpq3
+//!
+//! ```
 //! extern crate bgpq3;
 //!
 //! pub fn main() {
@@ -14,6 +18,22 @@
 //!     println!("{:?}", networks);
 //! }
 //! ```
+//! bgpq4
+//!
+//! ```ignore
+//! extern crate bgpq3;
+//! use bgpq3::{Bgpq3, Version};
+//!
+//! pub fn main() {
+//!     let bgpq4 = Bgpq3::builder().version(Version::Bgpq4).build();
+//!     let networks = bgpq4.query_v6("AS-RAPPET").unwrap();
+//!     println!("{:?}", networks);
+//! }
+//! ```
+//!
+//! ## Feature flags
+//!
+//! - `tokio` for async process invocation.
 //!
 //! [`bgpq3`]: https://github.com/snar/bgpq3
 //! [`bgpq4`]: https://github.com/bgp/bgpq4
@@ -22,6 +42,8 @@ extern crate serde;
 extern crate serde_json;
 extern crate thiserror;
 extern crate ipnetwork;
+#[cfg(feature = "tokio")]
+extern crate tokio;
 
 use thiserror::Error;
 use ipnetwork::{Ipv4Network, Ipv6Network, IpNetworkError};
@@ -32,6 +54,8 @@ use std::process::Command;
 ///
 /// The default wrapper can be crated with [`Bgpq3::new`].
 /// A custom wrapper can be build using the [`Bgpq3Settings`] builder.
+///
+/// The binaries have to be located in the `$PATH` environment variable for the default configuration.
 ///
 /// # Example
 ///
@@ -75,44 +99,56 @@ impl Bgpq3 {
 
     /// Queries a list of IPv4 networks.
     pub fn query_v4(&self, query: impl Into<Bgpq3Query>) -> Bgpq3Result<Vec<Ipv4Network>> {
-        let output = Command::new(self.settings.version.bin_name())
-            // JSON
-            .arg("-j")
-            // AS-SET
-            .arg(query.into().query_string)
+        let output = query.into()
+            .build_command(&self.settings, false)
             .output()?;
         if !output.status.success() {
             return Err(Bgpq3Error::StatusNotSuccess);
         }
         let deserialized: Bgpq3Output = serde_json::from_slice(output.stdout.as_slice())?;
-
-        let networks: Result<Vec<Ipv4Network>, IpNetworkError> = deserialized.nn
-            .into_iter()
-            .map(|inner| inner.prefix.parse())
-            .collect();
-        Ok(networks?)
+        deserialized.prefixes_v4()
     }
 
     /// Queries a list of IPv6 networks.
     pub fn query_v6(&self, query: impl Into<Bgpq3Query>) -> Bgpq3Result<Vec<Ipv6Network>> {
-        let output = Command::new(self.settings.version.bin_name())
-            // JSON
-            .arg("-j")
-            // IPv6
-            .arg("-6")
-            // AS-SET
-            .arg(query.into().query_string)
+        let output = query.into()
+            .build_command(&self.settings, true)
             .output()?;
         if !output.status.success() {
             return Err(Bgpq3Error::StatusNotSuccess);
         }
         let deserialized: Bgpq3Output = serde_json::from_slice(output.stdout.as_slice())?;
+        deserialized.prefixes_v6()
+    }
 
-        let networks: Result<Vec<Ipv6Network>, IpNetworkError> = deserialized.nn
-            .into_iter()
-            .map(|inner| inner.prefix.parse())
-            .collect();
-        Ok(networks?)
+    /// Queries a list of IPv4 networks using tokio.
+    #[cfg(feature = "tokio")]
+    pub async fn tokio_query_v4(&self, query: impl Into<Bgpq3Query>) -> Bgpq3Result<Vec<Ipv4Network>> {
+        let output = tokio::process::Command::from(
+            query.into()
+                .build_command(&self.settings, false)
+        )
+            .output().await?;
+        if !output.status.success() {
+            return Err(Bgpq3Error::StatusNotSuccess);
+        }
+        let deserialized: Bgpq3Output = serde_json::from_slice(output.stdout.as_slice())?;
+        deserialized.prefixes_v4()
+    }
+
+    /// Queries a list of IPv6 networks using tokio.
+    #[cfg(feature = "tokio")]
+    pub async fn tokio_query_v6(&self, query: impl Into<Bgpq3Query>) -> Bgpq3Result<Vec<Ipv6Network>> {
+        let output = tokio::process::Command::from(
+            query.into()
+                .build_command(&self.settings, true)
+        )
+            .output().await?;
+        if !output.status.success() {
+            return Err(Bgpq3Error::StatusNotSuccess);
+        }
+        let deserialized: Bgpq3Output = serde_json::from_slice(output.stdout.as_slice())?;
+        deserialized.prefixes_v6()
     }
 }
 
@@ -120,6 +156,22 @@ impl Bgpq3 {
 struct Bgpq3Output {
     #[serde(rename = "NN")]
     nn: Vec<Bgpq3OutputInner>,
+}
+
+impl Bgpq3Output {
+    fn prefixes_v4(self) -> Bgpq3Result<Vec<Ipv4Network>> {
+        let prefixes: Result<Vec<Ipv4Network>, IpNetworkError> = self.nn.into_iter()
+            .map(|inner| inner.prefix.parse())
+            .collect();
+        Ok(prefixes?)
+    }
+
+    fn prefixes_v6(self) -> Bgpq3Result<Vec<Ipv6Network>> {
+        let prefixes: Result<Vec<Ipv6Network>, IpNetworkError> = self.nn.into_iter()
+            .map(|inner| inner.prefix.parse())
+            .collect();
+        Ok(prefixes?)
+    }
 }
 
 #[derive(Deserialize)]
@@ -163,6 +215,17 @@ impl Bgpq3Query {
             query_string: format!("{}", asn.to_string()),
         }
     }
+
+    fn build_command(&self, settings: &Bgpq3Settings, ipv6: bool) -> Command {
+        let mut command = Command::new(settings.version.bin_name());
+        // JSON
+        command.arg("-j");
+        if ipv6 {
+            command.arg("-6");
+        }
+        command.arg(&self.query_string);
+        command
+    }
 }
 
 impl From<&str> for Bgpq3Query {
@@ -197,12 +260,6 @@ impl Bgpq3Settings {
 
     pub fn build(self) -> Bgpq3 {
         Bgpq3::with_settings(&self)
-    }
-}
-
-impl Bgpq3Settings {
-    pub fn new() -> Bgpq3Settings {
-        Default::default()
     }
 }
 
