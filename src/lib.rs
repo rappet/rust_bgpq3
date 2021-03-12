@@ -28,22 +28,52 @@ use ipnetwork::{Ipv4Network, Ipv6Network, IpNetworkError};
 use serde::Deserialize;
 use std::process::Command;
 
+/// A wrapper around the `bgpq3` or `bgpq4` binary.
+///
+/// The default wrapper can be crated with [`Bgpq3::new`].
+/// A custom wrapper can be build using the [`Bgpq3Settings`] builder.
+///
+/// # Example
+///
+/// Default wrapper using `bgpq3`:
+///
+/// ```
+/// use bgpq3::Bgpq3;
+///
+/// let bgpq3 = Bgpq3::new();
+/// ```
+///
+/// Custom wrapper using the recommended bgpq4 fork:
+///
+/// ```
+/// use bgpq3::{Bgpq3, Version};
+///
+/// let bgpq4 = Bgpq3::builder().version(Version::Bgpq4).build();
+/// ```
 #[derive(Default, Clone)]
 pub struct Bgpq3 {
     settings: Bgpq3Settings,
 }
 
 impl Bgpq3 {
+    /// Creates a new [`Bgpq3`] wrapper with the default settings.
     pub fn new() -> Bgpq3 {
         Default::default()
     }
 
+    /// Creates a new [`Bgpq3`] builder [`Bgpq3Settings`].
+    pub fn builder() -> Bgpq3Settings {
+        Bgpq3Settings::new()
+    }
+
+    /// Creates a new [`Bgpq3`] from a builder..
     pub fn with_settings(settings: &Bgpq3Settings) -> Bgpq3 {
         Bgpq3 {
             settings: settings.clone(),
         }
     }
 
+    /// Queries a list of IPv4 networks.
     pub fn query_v4(&self, query: impl Into<Bgpq3Query>) -> Bgpq3Result<Vec<Ipv4Network>> {
         let output = Command::new(self.settings.version.bin_name())
             // JSON
@@ -63,6 +93,7 @@ impl Bgpq3 {
         Ok(networks?)
     }
 
+    /// Queries a list of IPv6 networks.
     pub fn query_v6(&self, query: impl Into<Bgpq3Query>) -> Bgpq3Result<Vec<Ipv6Network>> {
         let output = Command::new(self.settings.version.bin_name())
             // JSON
@@ -96,6 +127,25 @@ struct Bgpq3OutputInner {
     prefix: String,
 }
 
+/// A query for bgpq3.
+///
+/// See [`Bgpq3::query_v4`] and [`Bgpq3::query_v6`] for usage examples.
+///
+/// # Example
+///
+/// AS-SET
+///
+/// ```
+/// use bgpq3::Bgpq3Query;
+/// let query: Bgpq3Query = "AS-RAPPET".into();
+/// ```
+///
+/// ASN
+///
+/// ```
+/// use bgpq3::Bgpq3Query;
+/// let query: Bgpq3Query = 207968.into();
+/// ```
 #[derive(Debug, Clone)]
 pub struct Bgpq3Query {
    pub(crate) query_string: String,
@@ -127,9 +177,27 @@ impl From<u32> for Bgpq3Query {
     }
 }
 
+/// Settings to create a new [`Bgpq3`] wrapper.
+///
+/// [`Bgpq3`]: crate::Bgpq3
 #[derive(Default, Debug, Clone)]
 pub struct Bgpq3Settings {
     version: Version,
+}
+
+impl Bgpq3Settings {
+    pub fn new() -> Bgpq3Settings {
+        Default::default()
+    }
+
+    pub fn version(mut self, version: Version) -> Bgpq3Settings {
+        self.version = version;
+        self
+    }
+
+    pub fn build(self) -> Bgpq3 {
+        Bgpq3::with_settings(&self)
+    }
 }
 
 impl Bgpq3Settings {
@@ -165,6 +233,13 @@ impl From<Bgpq3Error> for std::io::Error {
 
 pub type Bgpq3Result<T> = Result<T, Bgpq3Error>;
 
+/// Selects, if the bgpq3 or bgpq4 binary is used.
+///
+/// [`bgpq3`] is used as default.
+/// [`bgpq4`] should be preferred.
+///
+/// [`bgpq3`]: https://github.com/snar/bgpq3
+/// [`bgpq4`]: https://github.com/bgp/bgpq4
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Version {
     Bgpq3,
