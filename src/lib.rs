@@ -61,6 +61,7 @@ use thiserror::Error;
 use ipnetwork::{Ipv4Network, Ipv6Network, IpNetworkError};
 use serde::Deserialize;
 use std::process::Command;
+use std::fmt::{Display, Formatter};
 
 /// A wrapper around the `bgpq3` or `bgpq4` binary.
 ///
@@ -220,18 +221,41 @@ struct Bgpq3OutputInner {
 /// use bgpq3::Bgpq3Query;
 /// let query: Bgpq3Query = 207968.into();
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Bgpq3Query {
    pub(crate) query_string: String,
 }
 
 impl Bgpq3Query {
+    /// Build a query for an AS-SET
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bgpq3::Bgpq3Query;
+    /// let query = Bgpq3Query::as_set("AS-RAPPET");
+    /// assert_eq!(query.to_string(), "AS-RAPPET");
+    ///
+    /// let query_from: Bgpq3Query = "AS-RAPPET".into();
+    /// assert_eq!(query, query_from);
+    /// ```
     pub fn as_set(as_set: &str) -> Bgpq3Query {
         Bgpq3Query {
             query_string: as_set.to_string(),
         }
     }
 
+    /// Build a query for an ASN
+    ///
+    /// # Examples
+    /// ```
+    /// use bgpq3::Bgpq3Query;
+    /// let query = Bgpq3Query::asn(207968);
+    /// assert_eq!(query.to_string(), "AS207968");
+    ///
+    /// let query_from: Bgpq3Query = 207968.into();
+    /// assert_eq!(query, query_from);
+    /// ```
     pub fn asn(asn: u32) -> Bgpq3Query {
         Bgpq3Query {
             query_string: format!("AS{}", asn.to_string()),
@@ -247,6 +271,12 @@ impl Bgpq3Query {
         }
         command.arg(&self.query_string);
         command
+    }
+}
+
+impl Display for Bgpq3Query {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.query_string)
     }
 }
 
