@@ -316,12 +316,13 @@ impl Bgpq3Settings {
 }
 
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum Bgpq3Error {
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("bgpq3/bgpq4 did not run successfully")]
     StatusNotSuccess,
-    #[error("failed parsing output json: {0}")]
+    #[error("failed parsing bgpq3/bgpq4 output json: {0}")]
     Json(#[from] serde_json::Error),
     #[error("failed parsing ip-network: {0}")]
     IpNetwork(#[from] IpNetworkError),
